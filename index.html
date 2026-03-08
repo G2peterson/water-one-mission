@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mission Water One</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="game">
+
+    <header id="hud" class="hidden">
+      <div class="hud-block">
+        <span class="label">WaterCon</span>
+        <div class="bar"><div id="waterBar" class="fill water"></div></div>
+        <span id="waterValue">3</span>
+      </div>
+
+      <div class="hud-block">
+        <span class="label">Fuel</span>
+        <div class="bar"><div id="fuelBar" class="fill fuel"></div></div>
+        <span id="fuelValue">100</span>
+      </div>
+
+      <div class="hud-block">
+        <span class="label">Time</span>
+        <span id="timeValue">90</span>
+      </div>
+
+      <div class="hud-block">
+        <span class="label">Score</span>
+        <span id="scoreValue">0</span>
+      </div>
+    </header>
+
+    <main id="sceneWrap">
+      <section id="storyScene" class="scene active">
+        <div class="bg-image" id="storyBg"></div>
+        <div id="monitorOverlay" class="monitor-overlay"></div>
+      </section>
+
+      <section id="cockpitScene" class="scene">
+        <div class="bg-image" id="cockpitBg"></div>
+
+        <div id="spaceOverlay">
+          <div id="comet"></div>
+          <div id="ship"></div>
+          <div id="statusToast" class="toast hidden"></div>
+        </div>
+
+        <div id="missionButtons" class="mission-buttons hidden">
+          <button id="btnChase" class="action danger">CHASE</button>
+          <button id="btnLead" class="action primary">LEAD</button>
+          <button id="btnDeploy" class="action">DEPLOY</button>
+          <button id="btnReturn" class="action success">RETURN</button>
+        </div>
+      </section>
+    </main>
+
+    <footer id="dialogueBox">
+      <div id="speaker">Orion</div>
+      <div id="dialogueText">Loading…</div>
+
+      <div id="choices" class="choices"></div>
+
+      <div class="controls">
+        <button id="nextBtn">Next</button>
+        <button id="restartBtn" class="hidden">Restart</button>
+      </div>
+    </footer>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
