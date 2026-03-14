@@ -1,348 +1,250 @@
-const hud = document.getElementById("hud");
-const storyScene = document.getElementById("storyScene");
-const cockpitScene = document.getElementById("cockpitScene");
-const monitorOverlay = document.getElementById("monitorOverlay");
-
+const sceneEl = document.getElementById("scene");
 const speakerEl = document.getElementById("speaker");
-const textEl = document.getElementById("dialogueText");
+const dialogueEl = document.getElementById("dialogue");
 const choicesEl = document.getElementById("choices");
 const nextBtn = document.getElementById("nextBtn");
-const restartBtn = document.getElementById("restartBtn");
+const resetBtn = document.getElementById("resetBtn");
 
-const waterBar = document.getElementById("waterBar");
-const fuelBar = document.getElementById("fuelBar");
-const waterValue = document.getElementById("waterValue");
-const fuelValue = document.getElementById("fuelValue");
-const timeValue = document.getElementById("timeValue");
-const scoreValue = document.getElementById("scoreValue");
+const waterConEl = document.getElementById("waterCon");
+const fuelEl = document.getElementById("fuel");
+const scoreEl = document.getElementById("score");
+const timerEl = document.getElementById("timer");
 
-const missionButtons = document.getElementById("missionButtons");
-const btnChase = document.getElementById("btnChase");
-const btnLead = document.getElementById("btnLead");
-const btnDeploy = document.getElementById("btnDeploy");
-const btnReturn = document.getElementById("btnReturn");
-
-const ship = document.getElementById("ship");
-const comet = document.getElementById("comet");
-const statusToast = document.getElementById("statusToast");
-
-let sceneIndex = 0;
-let missionStarted = false;
-let timer = 90;
-let fuel = 100;
+let currentStep = 0;
 let waterCon = 3;
+let fuel = 100;
 let score = 0;
-let missionInterval = null;
-let choiceMade = null;
+let timer = 90;
+let missionTimer = null;
+let routeChoice = null;
 let deployed = false;
-let returned = false;
 
-const scenes = [
+const story = [
   {
-    type: "story",
+    bg: "schooldesk.png",
     speaker: "Orion",
-    text: "Students of Earth. I am Orion. I am selecting captains for Mission Water One.",
+    dialogue: "Students of Earth. I am Orion. I am selecting captains for Mission Water One.",
     monitor: "Incoming transmission from Orion"
   },
   {
-    type: "story",
+    bg: "schooldesk.png",
     speaker: "Orion",
-    text: "No current pilots. No military personnel. No one over twenty-five. To apply, answer three questions of physics. Correct answers matter. Speed matters more.",
-    monitor: "Captain recruitment now open"
+    dialogue: "No current pilots. No military personnel. No one over twenty-five. Answer three physics questions. Correct answers matter. Speed matters more.",
+    monitor: "Captain selection diagnostics"
   },
   {
-    type: "question",
+    bg: "schooldesk.png",
     speaker: "Orion",
-    text: "If a hammer and a feather are dropped at the same time where there is no air, which one hits first?",
+    dialogue: "If a hammer and a feather are dropped at the same time where there is no air, which hits first?",
     monitor: "Question 1 of 3",
     choices: [
-      { text: "Hammer", correct: false, feedbackSpeaker: "Roommate", feedback: "That was my first thought too." },
-      { text: "Feather", correct: false, feedbackSpeaker: "Roommate", feedback: "No, that doesn't feel right." },
-      { text: "Same time", correct: true, feedbackSpeaker: "Haley", feedback: "Without air resistance, they fall together." }
+      { text: "Hammer", nextSpeaker: "Roommate", nextDialogue: "No. Without air resistance that is not correct." },
+      { text: "Feather", nextSpeaker: "Roommate", nextDialogue: "No. That is not correct either." },
+      { text: "Same time", nextSpeaker: "Haley", nextDialogue: "Without air resistance, they fall together." }
     ]
   },
   {
-    type: "question",
+    bg: "schooldesk.png",
     speaker: "Orion",
-    text: "You are floating in space. You push a toolbox away from you. What happens to you?",
+    dialogue: "You are floating in space. You push a toolbox away from you. What happens to you?",
     monitor: "Question 2 of 3",
     choices: [
-      { text: "Nothing", correct: false, feedbackSpeaker: "Roommate", feedback: "If nothing happened, rockets wouldn't work." },
-      { text: "You move backward", correct: true, feedbackSpeaker: "Haley", feedback: "Push one way, move the other way." },
-      { text: "You move forward", correct: false, feedbackSpeaker: "Roommate", feedback: "That would be backwards." }
+      { text: "Nothing", nextSpeaker: "Roommate", nextDialogue: "No. Momentum has to go somewhere." },
+      { text: "You move backward", nextSpeaker: "Haley", nextDialogue: "Push one way, move the other." },
+      { text: "You move forward", nextSpeaker: "Roommate", nextDialogue: "No. Wrong direction." }
     ]
   },
   {
-    type: "question",
+    bg: "schooldesk.png",
     speaker: "Orion",
-    text: "Two identical metal plates sit in sunlight. One is black. One is white. Which gets hotter first?",
+    dialogue: "Two metal plates sit in sunlight. One is black and one is white. Which heats faster?",
     monitor: "Question 3 of 3",
     choices: [
-      { text: "Black plate", correct: true, feedbackSpeaker: "Haley", feedback: "Dark surfaces absorb more energy." },
-      { text: "White plate", correct: false, feedbackSpeaker: "Roommate", feedback: "White reflects more light." },
-      { text: "They heat the same", correct: false, feedbackSpeaker: "Roommate", feedback: "Same metal, different color, different heat." }
+      { text: "Black plate", nextSpeaker: "Haley", nextDialogue: "Dark surfaces absorb more energy." },
+      { text: "White plate", nextSpeaker: "Roommate", nextDialogue: "No. White reflects more." },
+      { text: "They heat the same", nextSpeaker: "Roommate", nextDialogue: "No. Color matters here." }
     ]
   },
   {
-    type: "story",
+    bg: "schooldesk.png",
     speaker: "Orion",
-    text: "Fastest correct respondent: Haley. Ship One is yours. Captain Wren and Captain Voss are also assigned.",
+    dialogue: "Fastest correct respondent: Haley. Ship One is yours. Captain Wren and Captain Voss are also assigned.",
     monitor: "Ship One assigned to Haley"
   },
   {
-    type: "story",
+    bg: "cockpit.png",
     speaker: "Orion",
-    text: "Your mission is simple. Reach the comet. Deploy the miners. Return water to Earth. WaterCon is now three. Launch immediately.",
-    monitor: "Mission Water One: Launch briefing"
-  },
-  {
-    type: "missionIntro",
-    speaker: "Mission Control",
-    text: "Mission screen active. Voss will chase. Haley and Wren must lead. Make the better captain choice."
+    dialogue: "Mission briefing. Reach the comet, secure water, and return to Earth. WaterCon is now at level three.",
+    mission: true
   }
 ];
 
-function updateHUD() {
-  waterValue.textContent = waterCon;
-  fuelValue.textContent = fuel;
-  timeValue.textContent = timer;
-  scoreValue.textContent = score;
-
-  waterBar.style.width = `${(waterCon / 5) * 100}%`;
-  fuelBar.style.width = `${fuel}%`;
-
-  if (waterCon >= 3) waterBar.style.background = "#39aa55";
-  else if (waterCon === 2) waterBar.style.background = "#d39a2a";
-  else waterBar.style.background = "#d44646";
-
-  if (fuel > 60) fuelBar.style.background = "#f3c744";
-  else if (fuel > 25) fuelBar.style.background = "#e08c2b";
-  else fuelBar.style.background = "#d44646";
+function updateHud() {
+  waterConEl.textContent = waterCon;
+  fuelEl.textContent = fuel;
+  scoreEl.textContent = score;
+  timerEl.textContent = timer;
 }
 
-function showStory() {
-  storyScene.classList.add("active");
-  cockpitScene.classList.remove("active");
-  hud.classList.add("hidden");
-  missionButtons.classList.add("hidden");
-  statusToast.classList.add("hidden");
-}
+function renderStep() {
+  const step = story[currentStep];
+  sceneEl.innerHTML = "";
+  sceneEl.style.backgroundImage = `url('${step.bg}')`;
 
-function showCockpit() {
-  storyScene.classList.remove("active");
-  cockpitScene.classList.add("active");
-  hud.classList.remove("hidden");
-  missionButtons.classList.remove("hidden");
-}
-
-function loadScene() {
+  speakerEl.textContent = step.speaker;
+  dialogueEl.textContent = step.dialogue;
   choicesEl.innerHTML = "";
-  restartBtn.classList.add("hidden");
-  nextBtn.classList.remove("hidden");
 
-  const scene = scenes[sceneIndex];
-  if (!scene) return;
-
-  if (scene.type === "story") {
-    showStory();
-    monitorOverlay.textContent = scene.monitor || "";
-    speakerEl.textContent = scene.speaker;
-    textEl.textContent = scene.text;
+  if (step.monitor) {
+    const monitor = document.createElement("div");
+    monitor.className = "monitor-box";
+    monitor.textContent = step.monitor;
+    sceneEl.appendChild(monitor);
   }
 
-  if (scene.type === "question") {
-    showStory();
-    monitorOverlay.textContent = scene.monitor || "";
-    speakerEl.textContent = scene.speaker;
-    textEl.textContent = scene.text;
-    nextBtn.classList.add("hidden");
-
-    scene.choices.forEach(choice => {
+  if (step.choices) {
+    nextBtn.style.display = "none";
+    step.choices.forEach(choice => {
       const btn = document.createElement("button");
       btn.className = "choice-btn";
       btn.textContent = choice.text;
-      btn.onclick = () => handleChoice(choice);
+      btn.onclick = () => {
+        speakerEl.textContent = choice.nextSpeaker;
+        dialogueEl.textContent = choice.nextDialogue;
+        score += 10;
+        updateHud();
+        choicesEl.innerHTML = "";
+        nextBtn.style.display = "inline-block";
+      };
       choicesEl.appendChild(btn);
     });
+  } else if (step.mission) {
+    nextBtn.style.display = "none";
+    renderMissionButtons();
+    startMissionTimer();
+  } else {
+    nextBtn.style.display = "inline-block";
   }
-
-  if (scene.type === "missionIntro") {
-    beginMission(scene);
-  }
 }
 
-function handleChoice(choice) {
-  choicesEl.innerHTML = "";
-  speakerEl.textContent = choice.feedbackSpeaker;
-  textEl.textContent = choice.feedback;
-  nextBtn.classList.remove("hidden");
-}
+function renderMissionButtons() {
+  const buttonWrap = document.createElement("div");
+  buttonWrap.className = "mission-buttons";
 
-nextBtn.addEventListener("click", () => {
-  sceneIndex++;
-  loadScene();
-});
+  const chaseBtn = document.createElement("button");
+  chaseBtn.className = "mission-btn";
+  chaseBtn.textContent = "CHASE";
+  chaseBtn.onclick = () => {
+    routeChoice = "chase";
+    fuel -= 30;
+    score -= 5;
+    speakerEl.textContent = "Mission Control";
+    dialogueEl.textContent = "Voss chooses to chase directly. Fuel burn is high.";
+    updateHud();
+  };
 
-function beginMission(scene) {
-  showCockpit();
-  speakerEl.textContent = scene.speaker;
-  textEl.textContent = scene.text;
-  missionStarted = true;
-  updateHUD();
-  startTimer();
-}
+  const leadBtn = document.createElement("button");
+  leadBtn.className = "mission-btn";
+  leadBtn.textContent = "LEAD";
+  leadBtn.onclick = () => {
+    routeChoice = "lead";
+    fuel -= 10;
+    score += 15;
+    speakerEl.textContent = "Haley";
+    dialogueEl.textContent = "Lead the comet. Meet it where it will be.";
+    updateHud();
+  };
 
-function startTimer() {
-  clearInterval(missionInterval);
-  missionInterval = setInterval(() => {
-    if (!missionStarted || returned) return;
-
-    timer--;
-    if (timer === 65) waterCon = 2;
-    if (timer === 35) waterCon = 1;
-
-    if (timer <= 0) {
-      timer = 0;
-      failMission("Time ran out. Earth remained in crisis.");
+  const deployBtn = document.createElement("button");
+  deployBtn.className = "mission-btn";
+  deployBtn.textContent = "DEPLOY";
+  deployBtn.onclick = () => {
+    if (!routeChoice) {
+      speakerEl.textContent = "Mission Control";
+      dialogueEl.textContent = "Choose CHASE or LEAD first.";
+      return;
     }
+    deployed = true;
+    score += 20;
+    speakerEl.textContent = "Mission Control";
+    dialogueEl.textContent = "Water secured. Prepare to return.";
+    updateHud();
+  };
 
-    updateHUD();
+  const returnBtn = document.createElement("button");
+  returnBtn.className = "mission-btn";
+  returnBtn.textContent = "RETURN";
+  returnBtn.onclick = () => {
+    if (!deployed) {
+      speakerEl.textContent = "Mission Control";
+      dialogueEl.textContent = "You need to deploy first.";
+      return;
+    }
+    clearInterval(missionTimer);
+    finishMission();
+  };
+
+  buttonWrap.appendChild(chaseBtn);
+  buttonWrap.appendChild(leadBtn);
+  buttonWrap.appendChild(deployBtn);
+  buttonWrap.appendChild(returnBtn);
+  sceneEl.appendChild(buttonWrap);
+}
+
+function startMissionTimer() {
+  clearInterval(missionTimer);
+  missionTimer = setInterval(() => {
+    timer -= 1;
+    if (timer === 60) waterCon = 2;
+    if (timer === 30) waterCon = 1;
+    updateHud();
+    if (timer <= 0) {
+      clearInterval(missionTimer);
+      speakerEl.textContent = "Orion";
+      dialogueEl.textContent = "Mission failed. Time ran out.";
+      sceneEl.innerHTML = "";
+    }
   }, 1000);
 }
 
-function showToast(message) {
-  statusToast.textContent = message;
-  statusToast.classList.remove("hidden");
+function finishMission() {
+  sceneEl.innerHTML = "";
+  sceneEl.style.backgroundImage = `url('cockpit.png')`;
+
+  if (routeChoice === "chase") {
+    speakerEl.textContent = "Orion";
+    dialogueEl.textContent = "Captain Voss returned first and got the glory, but did not meet the operational metrics required of a captain.";
+    score += 10;
+  } else {
+    speakerEl.textContent = "Orion";
+    dialogueEl.textContent = "Haley and Wren met the captain metrics. Water delivered. Prepare for the next mission: Mars.";
+    score += 50;
+    waterCon = 3;
+  }
+
+  updateHud();
+  nextBtn.style.display = "none";
 }
 
-btnChase.addEventListener("click", () => {
-  if (!missionStarted || returned) return;
-  choiceMade = "chase";
-  fuel = Math.max(0, fuel - 28);
-  ship.style.left = "66%";
-  ship.style.bottom = "54%";
-  comet.style.left = "22%";
-  comet.style.top = "26%";
-  speakerEl.textContent = "Mission Control";
-  textEl.textContent = "Chasing burns fuel fast. Voss likes this move.";
-  showToast("High fuel burn detected");
-  updateHUD();
-
-  if (fuel <= 0) failMission("You exhausted your fuel by chasing the comet.");
+nextBtn.addEventListener("click", () => {
+  currentStep += 1;
+  if (currentStep < story.length) {
+    renderStep();
+  }
 });
 
-btnLead.addEventListener("click", () => {
-  if (!missionStarted || returned) return;
-  choiceMade = "lead";
-  fuel = Math.max(0, fuel - 12);
-  ship.style.left = "56%";
-  ship.style.bottom = "46%";
-  comet.style.left = "18%";
-  comet.style.top = "24%";
-  speakerEl.textContent = "Haley";
-  textEl.textContent = "Lead the comet. Meet it where it will be.";
-  showToast("Efficient intercept path selected");
-  updateHUD();
-});
-
-btnDeploy.addEventListener("click", () => {
-  if (!missionStarted || returned) return;
-
-  if (!choiceMade) {
-    speakerEl.textContent = "Mission Control";
-    textEl.textContent = "Choose CHASE or LEAD before deploying.";
-    return;
-  }
-
-  if (choiceMade === "chase") {
-    deployed = true;
-    fuel = Math.max(0, fuel - 18);
-    score += 100;
-    speakerEl.textContent = "Mission Control";
-    textEl.textContent = "Deployment successful, but fuel reserves are poor.";
-    showToast("Water secured");
-  } else {
-    deployed = true;
-    fuel = Math.max(0, fuel - 8);
-    score += 100;
-    speakerEl.textContent = "Mission Control";
-    textEl.textContent = "Deployment successful. Return window remains stable.";
-    showToast("Water secured");
-  }
-
-  updateHUD();
-
-  if (fuel <= 0) failMission("You secured water, but became gravity-well bound.");
-});
-
-btnReturn.addEventListener("click", () => {
-  if (!missionStarted || returned) return;
-
-  if (!deployed) {
-    speakerEl.textContent = "Mission Control";
-    textEl.textContent = "Deploy the miners first.";
-    return;
-  }
-
-  returned = true;
-  clearInterval(missionInterval);
-
-  fuel = Math.max(0, fuel - 16);
-  ship.style.left = "24%";
-  ship.style.bottom = "30%";
-  updateHUD();
-
-  if (choiceMade === "chase") {
-    waterCon = Math.max(waterCon, 2);
-    score += 100;
-    speakerEl.textContent = "Orion";
-    textEl.textContent =
-      "Captain Voss returned first and received the glory. But he did not meet the operational metrics required of a captain.";
-  } else {
-    waterCon = Math.max(waterCon, 3);
-    score += 200;
-    speakerEl.textContent = "Orion";
-    textEl.textContent =
-      "Haley and Wren met the captain metrics. Water delivered. Prepare for the next adventure: Mars.";
-  }
-
-  updateHUD();
-  restartBtn.classList.remove("hidden");
-  nextBtn.classList.add("hidden");
-  missionButtons.classList.add("hidden");
-  showToast("Mission complete");
-});
-
-function failMission(message) {
-  missionStarted = false;
-  returned = true;
-  clearInterval(missionInterval);
-  speakerEl.textContent = "Orion";
-  textEl.textContent = message;
-  restartBtn.classList.remove("hidden");
-  nextBtn.classList.add("hidden");
-  missionButtons.classList.add("hidden");
-}
-
-restartBtn.addEventListener("click", () => {
-  sceneIndex = 0;
-  timer = 90;
-  fuel = 100;
+resetBtn.addEventListener("click", () => {
+  clearInterval(missionTimer);
+  currentStep = 0;
   waterCon = 3;
+  fuel = 100;
   score = 0;
-  missionStarted = false;
-  choiceMade = null;
+  timer = 90;
+  routeChoice = null;
   deployed = false;
-  returned = false;
-
-  ship.style.left = "22%";
-  ship.style.bottom = "28%";
-  comet.style.left = "14%";
-  comet.style.top = "22%";
-
-  updateHUD();
-  loadScene();
+  updateHud();
+  renderStep();
 });
 
-updateHUD();
-loadScene();
+updateHud();
+renderStep();
